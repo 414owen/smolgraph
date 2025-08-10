@@ -9,6 +9,7 @@ An extremely small, easy to use multi-line-graph library.
 ## Features
 
 * Small (<3.3k minified, and gzipped)
+* Numeric or stringy x axis
 * Pretty
 * Themeable via css and some JS config
 * Multiple lines
