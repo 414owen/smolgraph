@@ -1,0 +1,47 @@
+svg.smolgraph {
+  background: #2b2b2b;
+}
+
+svg.smolgraph > .zoom-out {
+  text-anchor: end;
+  cursor: pointer;
+}
+
+svg.smolgraph > a > text {
+  fill: #aaa;
+}
+
+svg.smolgraph text {
+  font-family: monospace;
+  font-size: 12;
+  white-space: pre;
+  fill: #eee;
+}
+
+svg.smolgraph .tick {
+  stroke: #444;
+  stroke-width: 0.5;
+}
+
+svg.smolgraph > .tracker > line {
+  stroke: #eee;
+  stroke-width: 1;
+}
+
+svg.smolgraph > .tracker > circle {
+  fill: #eee;
+  /* radius should be here, but firefix doesn't like it */
+}
+
+svg.smolgraph .key {
+  fill: rgba(0,0,0,0.4);
+}
+
+svg.smolgraph > .tracker > rect {
+  fill: rgba(255,255,255,0.1);
+}
+
+svg.smolgraph .overlay {
+  fill: transparent;
+  cursor: crosshair;
+}
