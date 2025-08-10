@@ -19,6 +19,7 @@ const FILL = "fill";
 const len = a => a.length;
 const flatmap = (arr, f) => arr.flatMap(f);
 const map = (arr, f) => arr.map(f);
+const isInt = n => Number.isInteger(n);
 
 const zip = (...args) =>
   map(args[0], (_, i) => 
@@ -28,7 +29,7 @@ const zip = (...args) =>
 const unzip = arrs => zip(...arrs);
 
 let formatTrackerLabel = (x, y) =>
-    `(${x}, ${y})`;
+    `(${formatTickValue(x)}, ${formatTickValue(y)})`;
 
 const calculateNiceScale = (values, maxTicks = 10) => {
   if (len(values) === 0) {
@@ -93,8 +94,10 @@ const text = (content, attrs = {}) => {
 const createScale = (domainMin, domainMax, rangeMin, rangeMax) =>
   (value) => rangeMin + ((value - domainMin) / (domainMax - domainMin)) * (rangeMax - rangeMin);
 
-const formatTickValue = (value) =>
-  Number.isInteger(value) ? `${value}` : `${value.toFixed(1)}`;
+const isStr = a => typeof a === "string";
+
+const formatTickValue = value => isStr(value) ? value :
+  (isInt(value) ? `${value}` : `${value.toFixed(3)}`);
 
 const mkTickLine = (x1, y1, x2, y2) =>
   el('line', {
@@ -114,10 +117,14 @@ const genColors = data => map(data, (_, n) => `hsl(${n * 360 / len(data) + 80},4
 const rect = (x, y, width, height, rest = {}) =>
   el("rect", {x, y, width, height, ...rest});
 
-let boundData = (origData, minX, maxX) => {
+const boundData = (origData, minX, maxX, xIsStringy) => {
   let data = structuredClone(origData);
   for (const series of data) {
-    series.data = series.data.filter(([x, _]) => x >= minX && x <= maxX);
+    if (xIsStringy) {
+      series.data = series.data.slice(minX, maxX);
+    } else {
+      series.data = series.data.filter(([x, _]) => x >= minX && x <= maxX);
+    }
   }
   return data;
 };
@@ -136,7 +143,7 @@ export const drawGraph = (config) => {
     height = 500,
     lineColors = genColors(data),
     maxTicks = {x: 15, y: 10},
-    onSelect = async (minX, maxX) => boundData(data, minX, maxX),
+    onSelect = async (minX, maxX) => boundData(data, minX, maxX, xIsStringy),
     axisLabels = {x: "X", y: "Y"},
     fontSize,
   } = config;
@@ -159,8 +166,10 @@ export const drawGraph = (config) => {
   const KEY_VSPACE = CHAR_HEIGHT * 1.4;
   const TEXT_CENTER_OFFSET = CHAR_HEIGHT * 0.3;
   const TEXT_TOP_OFFSET = CHAR_HEIGHT * 0.8;
+  const xIsStringy = typeof(data[0].data[0][0]) === "string";
 
   const dataStack = [data];
+  const tickWidth = tick => CHAR_WIDTH * len(formatTickValue(tick));
 
   const projectLink = el('a', {
       href: "https://github.com/414owen/smolgraph"
@@ -194,26 +203,43 @@ export const drawGraph = (config) => {
     const data = dataStack.at(-1);
     const lineLabels = map(data, d => d.label);
 
-    const xValues = [...new Set(flatmap(data, d => map(d.data, a => a[0])))];
-    xValues.sort((a, b) => a - b);
+    let xValues;
+    if (xIsStringy) {
+      xValues = map(data[0].data, (_, i) => i);
+      xValues.sort((a, b) => a - b);
+    } else {
+       xValues = [...new Set(flatmap(data, d => map(d.data, a => a[0])))];
+    }
+
+    let firstSeries = data[0].data;
+    const xLabel = xValue => xIsStringy
+      ? (xValue < len(firstSeries) && isInt(xValue)
+        ? firstSeries[xValue][0]
+        : "")
+      : xValue;
+    
     const ySeries = map(data, d => map(d.data, a => a[1]));
     const yValues = ySeries.flat();
 
     // Calculate scales
     const xScaleData = calculateNiceScale(xValues, maxTicks.x);
+    if (xIsStringy) {
+      xScaleData.ticks = map(xScaleData.ticks, xLabel);
+    }
     const yMin = min(...yValues);
     const yMax = max(...yValues);
     const yScaleData = calculateNiceScale([yMin, yMax], maxTicks.y);
 
-    const marginLeft = CHAR_HEIGHT + CHAR_WIDTH * 3 + CHAR_WIDTH * max(len(`${yScaleData.min}`), len(`${yScaleData.max}`));
-    const marginRight = len(`${xScaleData.max}`) * CHAR_WIDTH / 2 + CHAR_WIDTH;
+    const marginLeft = CHAR_HEIGHT + CHAR_WIDTH * 3 + max(tickWidth(yScaleData.min), tickWidth(yScaleData.max));
+    const marginRight = tickWidth(xLabel(xScaleData.max)) / 2 + CHAR_WIDTH;
     const marginTop = CHAR_HEIGHT/2 + CHAR_WIDTH;
     const marginBottom = CHAR_HEIGHT * 2 + CHAR_WIDTH * 3;
 
     const innerWidth = width - marginLeft - marginRight;
     const innerHeight = height - marginTop - marginBottom;
 
-    const scaleX = createScale(xScaleData.min, xScaleData.max, marginLeft, marginLeft + innerWidth);
+    const scaleXNum = createScale(xScaleData.min, xScaleData.max, marginLeft, marginLeft + innerWidth);
+    const scaleX = xIsStringy ? ((x, i) => scaleXNum(i)) : scaleXNum;
     const scaleY = createScale(yScaleData.min, yScaleData.max, marginTop + innerHeight, marginTop);
 
     setAttrs(zoomOutButton, {
@@ -243,8 +269,8 @@ export const drawGraph = (config) => {
     }));
 
 
-    const [vlines, vlabels] = unzip(map(xScaleData.ticks, tick => {
-      const x = scaleX(tick);
+    const [vlines, vlabels] = unzip(map(xScaleData.ticks, (tick, i) => {
+      const x = scaleX(tick, i * xScaleData.tickStep);
       const line = mkTickLine(x, marginTop, x, marginTop + innerHeight);
 
       const label = formatTickValue(tick);
@@ -277,8 +303,8 @@ export const drawGraph = (config) => {
     // Draw data lines
     data.forEach(({data: points}, idx) => {
       const [x, y] = points[0];
-      const initial = `M${scaleX(x)},${scaleY(y)}`;
-      const rest = map(points.slice(1), ([x, y]) => `L${scaleX(x)},${scaleY(y)}`);
+      const initial = `M${scaleX(x, 0)},${scaleY(y)}`;
+      const rest = map(points.slice(1), ([x, y], i) => `L${scaleX(x, i + 1)},${scaleY(y)}`);
       const linePath = initial + rest.join('');
       addChild(svg, el('path', {
         d: linePath, [FILL]: 'none', stroke: lineColors[idx % len(lineColors)], 'stroke-width': LINE_WIDTH
@@ -337,7 +363,7 @@ export const drawGraph = (config) => {
       hideTrackers();
       let mouseX = getScreenPosition(event);
 
-      if (mouseDownPosition!==null) {
+      if (mouseDownPosition !== null) {
         let [mn, mx] = order(mouseDownPosition, mouseX);
         setAttrs(trackerRect, {
           x: mn,
@@ -354,18 +380,21 @@ export const drawGraph = (config) => {
         const {data: points} = data[i];
         const {line, dot} = trackerEls[i];
 
-        const prevIndex = binarySearch(points, ([x]) => x - xValue);
+        const prevIndex = xIsStringy
+          ? min(floor(xValue), len(firstSeries) - 1)
+          : binarySearch(points, ([x]) => x - xValue);
         const nextIndex = min(len(points) - 1, prevIndex + 1);
 
-        const [prevValue] = points[prevIndex];
-        const [nextValue] = points[nextIndex];
+        const [prevValue, nextValue] = xIsStringy
+          ? [prevIndex, nextIndex]
+          : [points[prevIndex][0], points[nextIndex][0]];
 
         const [nearestIndex, nearestValue] =
           diff(xValue, prevValue) < diff(xValue, nextValue)
           ? [prevIndex, prevValue]
           : [nextIndex, nextValue];
 
-        const xPos = scaleX(points[nearestIndex][0]);
+        const xPos = scaleX(points[nearestIndex][0], nearestIndex);
         const yPos = scaleY(points[nearestIndex][1]);
 
         if (xLines.has(xPos)) {
@@ -445,7 +474,7 @@ export const drawGraph = (config) => {
     const keyWithPositions = (positions) =>
       map(
         zip(lineLabels, positions),
-        ([label, [x, y]]) => `${label.padEnd(maxLabelLen)}  ${formatTrackerLabel(x, y)}`
+        ([label, [x, y]]) => `${label.padEnd(maxLabelLen)}  ${formatTrackerLabel(xLabel(x), y)}`
       );
 
     // With tracker positions
