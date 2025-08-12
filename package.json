@@ -1,0 +1,20 @@
+{
+  "name": "smolgraph",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./graph.js"
+    }
+  },
+  "main": "./graph.js",
+  "files": [
+    "graph.js",
+    "graph.css",
+    "graph.d.ts"
+  ],
+  "style": "./graph.css",
+  "keywords": ["graph", "svg", "line graph"],
+  "author": "Owen Shepherd <owen@owen.cafe>",
+  "license": "MIT"
+}
