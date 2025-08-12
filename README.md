@@ -1,5 +1,7 @@
 # Smolgraph
 
+![NPM Version](https://img.shields.io/npm/v/smolgraph)
+
 An extremely small, easy to use multi-line-graph library.
 
 ## Example
