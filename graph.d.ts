@@ -53,7 +53,7 @@ export interface DrawGraphConfig {
    * Called when a selection is made on the x-axis.
    * By default this just takes a slice of the `data` field.
    */
-  onSelect?: (minX: number, maxX: number) => Promise<SeriesData>;
+  loadData?: (minX: number, maxX: number) => Promise<SeriesData>;
 
   /** Axis labels. @default { x: "X", y: "Y" } */
   axisLabels?: AxisLabels;
