@@ -136,6 +136,16 @@ const addEv = (el, name, handler) => {
   });
 };
 
+const debounce = (f, timeout) => {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer)
+    timer = setTimeout(() => {
+    	f.apply(this, args)
+    }, timeout);
+  };
+};
+
 export const drawGraph = (config) => {
   const { data } = config;
   const {
@@ -220,6 +230,8 @@ export const drawGraph = (config) => {
     
     const ySeries = map(data, d => map(d.data, a => a[1]));
     const yValues = ySeries.flat();
+    const minX = min(...map(data, a => a.data[0]));
+    const maxX = max(...map(data, a => a.data.at(-1)));
 
     // Calculate scales
     const xScaleData = calculateNiceScale(xValues, maxTicks.x);
@@ -248,8 +260,6 @@ export const drawGraph = (config) => {
     });
 
     const trackerLayer = el('g', {"class": "tracker"});
-    const trackerRect = rect(0, marginTop, 0, innerHeight);
-    addChild(trackerLayer, trackerRect);
     const trackerEls = map(data, () => {
       const line = el('line');
       const dot = el('circle', {
@@ -301,15 +311,19 @@ export const drawGraph = (config) => {
     }
 
     // Draw data lines
-    data.forEach(({data: points}, idx) => {
+    let pathGroup = el("g", {"class": "paths"}, data.map(({data: points}, idx) => {
       const [x, y] = points[0];
       const initial = `M${scaleX(x, 0)},${scaleY(y)}`;
       const rest = map(points.slice(1), ([x, y], i) => `L${scaleX(x, i + 1)},${scaleY(y)}`);
       const linePath = initial + rest.join('');
-      addChild(svg, el('path', {
+      return el('path', {
         d: linePath, [FILL]: 'none', stroke: lineColors[idx % len(lineColors)], 'stroke-width': LINE_WIDTH
-      }));
-    });
+      });
+    }));
+
+    addChild(svg, el("g", {
+      "clip-path": `inset(${marginTop} ${marginRight} ${marginBottom} ${marginLeft}) view-box`,
+    }, [pathGroup]));
 
     // Implement hover interaction
     const overlay = rect(
@@ -326,7 +340,7 @@ export const drawGraph = (config) => {
 
     const overlayEv = (name, handler) => addEv(overlay, name, handler);
 
-    let mouseDownPosition = null;
+    let clickPosition = null;
 
     const limitX = x => min(max(x, marginLeft), marginLeft + innerWidth);
 
@@ -339,40 +353,57 @@ export const drawGraph = (config) => {
     const xToPoint = x => 
       xScaleData.min + (x - marginLeft) / innerWidth * (xScaleData.max - xScaleData.min);
 
-    overlayEv("mousedown", event => {
-      // If someone just clicks on a spot, then we won't rerender,
-      // we'll just store the position for a two-click zoom.
-      if (mouseDownPosition === null) {
-        mouseDownPosition = getScreenPosition(event);
-      }
-    });
+    let xScreenPos = marginLeft;
+    let currentScale = 1;
+    let currentXOffset = 0;
+    let timesScaled = 0;
 
-    overlayEv("mouseup", async event => {
-      let mouseX = getScreenPosition(event);
-      let [mn, mx] = order(xToPoint(mouseDownPosition), xToPoint(mouseX));
-      let newData = await onSelect(mn, mx);
-      if (len(newData[0].data) < 2) {
-        return;
-      }
+    let loadNewData = debounce(async () => {
+      const rightScreenX = marginLeft + innerWidth;
+
+      // Invert element transform (scale(...) translate(...)):
+      const leftUntransformed  = (marginLeft / currentScale) - currentXOffset;
+      const rightUntransformed = (rightScreenX / currentScale) - currentXOffset;
+
+      // Convert SVG x’s to data-domain values
+      const minXVisible = xToPoint(leftUntransformed);
+      const maxXVisible = xToPoint(rightUntransformed);
+
+      const expectedTimesScaled = timesScaled;
+      const newData = await onSelect(minXVisible, maxXVisible);
+      if (expectedTimesScaled !== timesScaled || len(newData[0].data) < 2) return;
+
+      timesScaled = 0;
       dataStack.push(newData);
       drawGraphData();
-      mouseDownPosition = null;
+    }, 300);
+
+    overlayEv("wheel", async event => {
+      timesScaled += 1;
+      updateTracker(event);
+      event.preventDefault();
+      xScreenPos = getScreenPosition(event);
+
+      const zoomFactor = 1.15;
+      const oldX = xScreenPos / currentScale;
+      if (event.wheelDelta > 0) {
+        currentScale *= zoomFactor;
+      } else {
+        currentScale /= zoomFactor;
+      }
+      const newX = xScreenPos / currentScale;
+      currentXOffset += newX - oldX;
+      setAttrs(pathGroup, {
+        "transform": `scale(${currentScale} 1) translate(${currentXOffset} 0)`
+      });
+      loadNewData();
     });
 
-    overlayEv('mousemove', (event) => {
+    const updateTracker = (event, ...args) => {
       hideTrackers();
-      let mouseX = getScreenPosition(event);
+      xScreenPos = getScreenPosition(event);
 
-      if (mouseDownPosition !== null) {
-        let [mn, mx] = order(mouseDownPosition, mouseX);
-        setAttrs(trackerRect, {
-          x: mn,
-          width: mx - mn
-        });
-        show(trackerRect);
-      }
-
-      const xValue = xToPoint(mouseX);
+      const xValue = xToPoint(xScreenPos);
 
       const xLines = new Set();
       const positions = [];
@@ -413,21 +444,23 @@ export const drawGraph = (config) => {
         setAttrs(dot, {
           cx: xPos,
           cy: yPos,
-          [VISIBILITY]: VISIBLE,
         });
+        showhide(dot, !timesScaled);
 
         positions.push([nearestValue, points[nearestIndex][1]]);
       }
 
       updateKeyWithPositions(positions);
-    });
+    };
+
+    overlayEv('mousemove', updateTracker);
 
     overlayEv('mouseout', () => {
       hideTrackers();
       updateKey(lineLabels);
     });
 
-    let keyRect = rect(
+    const keyRect = rect(
       marginLeft,
       marginTop,
       0,
@@ -501,6 +534,14 @@ const hide = el => {
 
 const show = el => {
   setAttr(el, VISIBILITY, VISIBLE);
+};
+
+const showhide = (el, visible) => {
+  if (visible) {
+    show(el);
+  } else {
+    hide(el);
+  }
 };
 
 const diff = (x, y) => M.abs(x - y);
