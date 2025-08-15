@@ -20,5 +20,6 @@ Live example: https://414owen.github.io/smolgraph/
 * Tracker visible on hover
 * Displays points hovered over
 * Scroll to zoom
+* Pinch to zoom
 * Double-click to zoom out
 * Optional callback to load new data on zoom

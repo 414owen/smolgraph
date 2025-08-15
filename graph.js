@@ -8,29 +8,31 @@ const KEY_BAR_PADDING = 8;
 const KEY_BAR_HEIGHT = 3;
 const CLASS_NAME = "smolgraph";
 const LINE_WIDTH = 1;
-const FONT = "monospace";
 
 // Minification-aware renaming
-const M = Math;
-const { min, max, floow, pow, floor} = M;
-const doc = document;
 const VISIBILITY = "visibility";
 const VISIBLE = "visible";
 const MIDDLE = "middle";
-const FILL = "fill";
+const CLIENT_X = "clientX";
+const CLIENT_Y = "clientY";
+const TRANSFORM = "transform";
+const M = Math;
+const { abs, min, max, pow, floor} = M;
 const len = a => a.length;
+const isInt = n => Number.isInteger(n);
 const flatmap = (arr, f) => arr.flatMap(f);
 const map = (arr, f) => arr.map(f);
-const isInt = n => Number.isInteger(n);
+const push = (arr, el) => arr.push(el);
+const doc = document;
 
 const zip = (...args) =>
-  map(args[0], (_, i) => 
+  map(args[0], (_, i) =>
     map(args, arg => arg[i])
   );
 
 const unzip = arrs => zip(...arrs);
 
-let formatTrackerLabel = (x, y) =>
+const formatTrackerLabel = (x, y) =>
     `(${formatTickValue(x)}, ${formatTickValue(y)})`;
 
 const calculateNiceScale = (values, maxTicks = 10) => {
@@ -54,7 +56,7 @@ const calculateNiceScale = (values, maxTicks = 10) => {
 
   const ticks = [];
   for (let t = niceMin; t <= niceMax + 1e-9; t += niceStep) {
-    ticks.push(parseFloat(t.toFixed(12)));
+    push(ticks, parseFloat(t.toFixed(12)));
   }
 
   return { min: niceMin, max: niceMax, tickStep: niceStep, ticks };
@@ -119,23 +121,20 @@ const genColors = data => map(data, (_, n) => `hsl(${n * 360 / len(data) + 80},4
 const rect = (x, y, width, height, rest = {}) =>
   el("rect", {x, y, width, height, ...rest});
 
-const boundData = (origData, minX, maxX, xIsStringy) => {
-  let data = structuredClone(origData);
-  for (const series of data) {
-    if (xIsStringy) {
-      series.data = series.data.slice(minX, maxX);
-    } else {
-      series.data = series.data.filter(([x, _]) => x >= minX && x <= maxX);
-    }
-  }
-  return data;
-};
+const boundData = (origData, minX, maxX, xIsStringy) =>
+  map(structuredClone(origData), ({data,label}) => ({
+    label,
+    data: xIsStringy
+      ? data.slice(minX, maxX)
+      : data.filter(([x, _]) => x >= minX && x <= maxX)
+  }));
 
 const addEv = (el, name, handler) => {
   el.addEventListener(name, e => {
     handler(e);
+    e.preventDefault();
     e.stopPropagation();
-  });
+  }, { passive: false });
 };
 
 const debounce = (f, timeout) => {
@@ -147,6 +146,8 @@ const debounce = (f, timeout) => {
     }, timeout);
   };
 };
+
+const justClass = className => ({"class": className});
 
 export const drawGraph = (config) => {
   const { data } = config;
@@ -165,8 +166,6 @@ export const drawGraph = (config) => {
 
   const svg = el("svg", {
     xmlns: SVG_NS,
-    width,
-    height,
     viewBox: `0 0 ${width} ${height}`,
     "class": CLASS_NAME
   });
@@ -202,9 +201,7 @@ export const drawGraph = (config) => {
     drawGraphData();
   });
 
-  const zoomOutButton = text("reset zoom", {
-    "class": "zoom-out",
-  });
+  const zoomOutButton = text("reset zoom", justClass("zoom-out"));
 
   addEv(zoomOutButton, "click", () => {
     dataStack.splice(1);
@@ -215,27 +212,28 @@ export const drawGraph = (config) => {
     svg.innerHTML = "";
 
     const data = dataStack.at(-1);
+    const dataSeries = map(data, d => d.data);
     const lineLabels = map(data, d => d.label);
 
     let xValues;
     if (xIsStringy) {
-      xValues = map(data[0].data, (_, i) => i);
+      xValues = map(dataSeries[0], (_, i) => i);
       xValues.sort((a, b) => a - b);
     } else {
-       xValues = [...new Set(flatmap(data, d => map(d.data, a => a[0])))];
+       xValues = [...new Set(flatmap(dataSeries, d => map(d, a => a[0])))];
     }
 
-    let firstSeries = data[0].data;
+    const firstSeries = dataSeries[0];
     const xLabel = xValue => xIsStringy
       ? (xValue < len(firstSeries) && isInt(xValue)
         ? firstSeries[xValue][0]
         : "")
       : xValue;
-    
-    const ySeries = map(data, d => map(d.data, a => a[1]));
+
+    const ySeries = map(dataSeries, d => map(d, a => a[1]));
     const yValues = ySeries.flat();
-    const minX = min(...map(data, a => a.data[0]));
-    const maxX = max(...map(data, a => a.data.at(-1)));
+    const minX = min(...map(dataSeries, a => a[0]));
+    const maxX = max(...map(dataSeries, a => a.at(-1)));
 
     // Calculate scales
     const xScaleData = calculateNiceScale(xValues, maxTicks.x);
@@ -263,7 +261,7 @@ export const drawGraph = (config) => {
       y: marginTop + CHAR_HEIGHT
     });
 
-    const trackerLayer = el('g', {"class": "tracker"});
+    const trackerLayer = el('g', justClass("tracker"));
     const trackerEls = map(data, () => {
       const line = el('line');
       const dot = el('circle', {
@@ -310,18 +308,18 @@ export const drawGraph = (config) => {
       const y = marginTop + innerHeight / 2;
       addChild(svg, text(axisLabels.y, {
         textAnchor,
-        transform: `translate(${x},${y}) rotate(-90)`
+        [TRANSFORM]: `translate(${x},${y}) rotate(-90)`
       }))
     }
 
     // Draw data lines
-    let pathGroup = el("g", {"class": "paths"}, data.map(({data: points}, idx) => {
+    const pathGroup = el("g", justClass("paths"), data.map(({data: points}, idx) => {
       const [x, y] = points[0];
       const initial = `M${scaleX(x, 0)},${scaleY(y)}`;
       const rest = map(points.slice(1), ([x, y], i) => `L${scaleX(x, i + 1)},${scaleY(y)}`);
       const linePath = initial + rest.join('');
       return el('path', {
-        d: linePath, [FILL]: 'none', stroke: lineColors[idx % len(lineColors)], 'stroke-width': LINE_WIDTH
+        d: linePath, fill: 'none', stroke: lineColors[idx % len(lineColors)], 'stroke-width': LINE_WIDTH
       });
     }));
 
@@ -330,9 +328,27 @@ export const drawGraph = (config) => {
     }, [pathGroup]));
 
     // Implement hover interaction
+
+    const applyTransform = () => {
+      setAttrs(pathGroup, {
+        [TRANSFORM]: `scale(${currentScale} 1) translate(${currentXOffset} 0)`
+      });
+    };
+
+    const zoomAt = (focalScreenX, nextScale) => {
+      const oldX = focalScreenX / currentScale;
+      currentScale = nextScale;
+      const newX = focalScreenX / currentScale;
+      currentXOffset += newX - oldX;
+      applyTransform();
+      loadNewData();
+    };
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    const clampScale = s => clamp(s, 0.05, 200);
+
     const overlay = rect(
       0, marginTop, width, innerHeight,
-      {"class": "overlay"}
+      justClass("overlay")
     );
     overlay.focus();
 
@@ -344,17 +360,15 @@ export const drawGraph = (config) => {
 
     const overlayEv = (name, handler) => addEv(overlay, name, handler);
 
-    let clickPosition = null;
-
     const limitX = x => min(max(x, marginLeft), marginLeft + innerWidth);
 
     // Gets the X position, limited to the graphing area...
     const getScreenPosition = event => {
-      const domPoint = new DOMPointReadOnly(event.clientX, event.clientY)
+      const domPoint = new DOMPointReadOnly(event[CLIENT_X], event[CLIENT_Y])
       return limitX(domPoint.matrixTransform(svg.getScreenCTM().inverse()).x)
     };
 
-    const xToPoint = x => 
+    const xToPoint = x =>
       xScaleData.min + (x - marginLeft) / innerWidth * (xScaleData.max - xScaleData.min);
 
     let xScreenPos = marginLeft;
@@ -362,7 +376,7 @@ export const drawGraph = (config) => {
     let currentXOffset = 0;
     let timesScaled = 0;
 
-    let loadNewData = debounce(async () => {
+    const loadNewData = debounce(async () => {
       const rightScreenX = marginLeft + innerWidth;
 
       // Invert element transform (scale(...) translate(...)):
@@ -377,20 +391,87 @@ export const drawGraph = (config) => {
 
       const boundedData = boundData(data, minXVisible, maxXVisible, xIsStringy)
       if (expectedTimesScaled !== timesScaled || len(boundedData[0].data) < 2) return;
-      dataStack.push(boundedData);
+      push(dataStack, boundedData);
       drawGraphData();
 
       if (!loadData) return;
       const newData = await loadData(minXVisible, maxXVisible);
       if (expectedTimesScaled !== timesScaled || len(newData[0].data) < 2) return;
-      dataStack.push(newData);
+      push(dataStack, newData);
       drawGraphData();
     }, 300);
 
+    // Mobile support
+    let gestureStartScale = null;
+    let gestureFocalX = null;
+
+    overlayEv("gesturestart", e => {
+      gestureStartScale = currentScale;
+      gestureFocalX = getScreenPosition(e);
+    });
+
+    overlayEv("gesturechange", e => {
+      if (gestureStartScale == null) return;
+      const next = clampScale(gestureStartScale * e.scale);
+      zoomAt(gestureFocalX, next);
+    });
+
+    overlayEv("gestureend", () => {
+      gestureStartScale = null;
+      gestureFocalX = null;
+    });
+
+
+    let touchStateActive = false;
+    let touchStateStartDist = 0;
+    let touchStateStartScale = 1;
+    let touchStateFocalX = 0;
+
+    const touchDistance = (t0, t1) => {
+      const dx = t0[CLIENT_X] - t1[CLIENT_X];
+      const dy = t0[CLIENT_Y] - t1[CLIENT_Y];
+      return Math.hypot(dx, dy);
+    };
+
+    const touchCenterX = (t0, t1) => (t0[CLIENT_X] + t1[CLIENT_X]) / 2;
+
+    overlayEv("touchstart", e => {
+      const touches = e.touches;
+      if (len(touches) === 2) {
+        touchStateActive = true;
+        touchStateStartDist = touchDistance(touches[0], touches[1]);
+        touchStateStartScale = currentScale;
+        touchStateFocalX = getScreenPosition({
+          [CLIENT_X]: touchCenterX(touches[0], touches[1]),
+          [CLIENT_Y]: (touches[0][CLIENT_Y] + touches[1][CLIENT_Y]) / 2
+        });
+      }
+    });
+
+    overlayEv("touchmove", e => {
+      const touches = e.touches;
+      if (touchStateActive && len(touches) === 2) {
+        const dist = touchDistance(touches[0], touches[1]);
+        const factor = dist / touchStateStartDist;
+        const next = clampScale(touchStateStartScale * factor);
+        zoomAt(touchStateFocalX, next);
+      }
+    });
+
+    overlayEv("touchend", (e) => {
+      if (e.touches.length < 2) {
+        touchStateActive = false;
+      }
+    });
+
+    overlayEv("touchcancel", () => {
+      touchStateActive = false;
+    });
+
+    // Scroll support
     overlayEv("wheel", async event => {
       timesScaled += 1;
       updateTracker(event);
-      event.preventDefault();
       xScreenPos = getScreenPosition(event);
 
       const zoomFactor = 1.15;
@@ -402,9 +483,11 @@ export const drawGraph = (config) => {
       }
       const newX = xScreenPos / currentScale;
       currentXOffset += newX - oldX;
-      setAttrs(pathGroup, {
-        "transform": `scale(${currentScale} 1) translate(${currentXOffset} 0)`
-      });
+      setAttr(
+        pathGroup,
+        TRANSFORM,
+        `scale(${currentScale} 1) translate(${currentXOffset} 0)`
+      );
       loadNewData();
     });
 
@@ -430,7 +513,7 @@ export const drawGraph = (config) => {
           : [points[prevIndex][0], points[nextIndex][0]];
 
         const [nearestIndex, nearestValue] =
-          diff(xValue, prevValue) < diff(xValue, nextValue)
+          abs(xValue - prevValue) < abs(xValue - nextValue)
           ? [prevIndex, prevValue]
           : [nextIndex, nextValue];
 
@@ -456,7 +539,7 @@ export const drawGraph = (config) => {
         });
         showhide(dot, !timesScaled);
 
-        positions.push([nearestValue, points[nearestIndex][1]]);
+        push(positions, [nearestValue, points[nearestIndex][1]]);
       }
 
       updateKeyWithPositions(positions);
@@ -474,11 +557,11 @@ export const drawGraph = (config) => {
       marginTop,
       0,
       KEY_VSPACE * (len(lineLabels) + 0.5),
-      {class: "key"}
+      justClass("key")
     );
 
     const keyTexts = []
-    const keyLayer = el("g", {"class": "key"}, [
+    const keyLayer = el("g", justClass("key"), [
       keyRect,
       ...flatmap(lineLabels, (keyLabel, i) => {
         const y = marginTop + KEY_VSPACE * (i + 1);
@@ -486,7 +569,7 @@ export const drawGraph = (config) => {
           y,
           x: marginLeft + KEY_BAR_WIDTH,
         });
-        keyTexts.push(textEl);
+        push(keyTexts, textEl);
         return [
           textEl,
           rect(
@@ -501,7 +584,7 @@ export const drawGraph = (config) => {
     ]);
 
     const updateKeyRect = (maxKeyChars) => {
-      keyRect.setAttribute("width", KEY_BAR_WIDTH + KEY_BAR_PADDING/2 + CHAR_WIDTH * maxKeyChars);
+      setAttr(keyRect, "width", KEY_BAR_WIDTH + KEY_BAR_PADDING/2 + CHAR_WIDTH * maxKeyChars);
     };
 
     const maxLabelLen = max(...map(lineLabels, k => len(k)));
@@ -535,8 +618,6 @@ export const drawGraph = (config) => {
   return svg;
 };
 
-const order = (a, b) => [min(a, b), max(a, b)];
-
 const hide = el => {
   setAttr(el, VISIBILITY, "hidden");
 };
@@ -552,8 +633,6 @@ const showhide = (el, visible) => {
     hide(el);
   }
 };
-
-const diff = (x, y) => M.abs(x - y);
 
 const binarySearch = (values, f) => {
   const l = len(values);
