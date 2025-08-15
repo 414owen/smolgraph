@@ -38,3 +38,8 @@ input[type="number"] {
   align-self: center;
   justify-self: stretch;
 }
+
+svg.smolgraph {
+  width: 800px;
+  max-width: 100%;
+}
