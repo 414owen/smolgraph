@@ -16,6 +16,7 @@ const MIDDLE = "middle";
 const CLIENT_X = "clientX";
 const CLIENT_Y = "clientY";
 const TRANSFORM = "transform";
+const HIDDEN = "hidden";
 const M = Math;
 const { abs, min, max, pow, floor} = M;
 const len = a => a.length;
@@ -149,7 +150,7 @@ const debounce = (f, timeout) => {
 
 const justClass = className => ({"class": className});
 
-export const drawGraph = (config) => {
+export const drawGraph = config => {
   const { data } = config;
 
   const xIsStringy = isStr(data[0].data[0][0]);
@@ -162,6 +163,7 @@ export const drawGraph = (config) => {
     loadData,
     axisLabels = {x: "X", y: "Y"},
     fontSize,
+    onClick = console.log,
   } = config;
 
   const svg = el("svg", {
@@ -279,7 +281,6 @@ export const drawGraph = (config) => {
       const labelEl = mkTickLabel(label, marginLeft - CHAR_WIDTH, y + TEXT_CENTER_OFFSET, 'end');
       return [line, labelEl];
     }));
-
 
     const [vlines, vlabels] = unzip(map(xScaleData.ticks, (tick, i) => {
       const x = scaleX(tick, i * xScaleData.tickStep);
@@ -468,6 +469,13 @@ export const drawGraph = (config) => {
       touchStateActive = false;
     });
 
+    overlayEv("click", event => {
+      xScreenPos = getScreenPosition(event);
+      const xValue = xToPoint(xScreenPos);
+      let points = map(zip(dataSeries, getNearestIndices()), ([series, index]) => series[index]);
+      onClick(event, xValue, points);
+    });
+
     // Scroll support
     overlayEv("wheel", async event => {
       timesScaled += 1;
@@ -491,13 +499,10 @@ export const drawGraph = (config) => {
       loadNewData();
     });
 
-    const updateTracker = (event, ...args) => {
-      hideTrackers();
-      xScreenPos = getScreenPosition(event);
-
+    // Assumes an up-to-date xScreenPos
+    /** @returns An index per data series */
+    const getNearestIndices = () => {
       const xValue = xToPoint(xScreenPos);
-
-      const xLines = new Set();
       const positions = [];
       for (let i = 0; i < len(data); i++) {
         const {data: points} = data[i];
@@ -508,17 +513,30 @@ export const drawGraph = (config) => {
           : binarySearch(points, ([x]) => x - xValue);
         const nextIndex = min(len(points) - 1, prevIndex + 1);
 
-        const [prevValue, nextValue] = xIsStringy
+        const [prevX, nextX] = xIsStringy
           ? [prevIndex, nextIndex]
           : [points[prevIndex][0], points[nextIndex][0]];
 
-        const [nearestIndex, nearestValue] =
-          abs(xValue - prevValue) < abs(xValue - nextValue)
-          ? [prevIndex, prevValue]
-          : [nextIndex, nextValue];
+        const nearestIndex =
+          abs(xValue - prevX) < abs(xValue - nextX)
+          ? prevIndex
+          : nextIndex;
 
-        const xPos = scaleX(points[nearestIndex][0], nearestIndex);
-        const yPos = scaleY(points[nearestIndex][1]);
+        push(positions, nearestIndex);
+      }
+      return positions;
+    };
+
+    const updateTracker = event => {
+      hideTrackers();
+      xScreenPos = getScreenPosition(event);
+
+      const xLines = new Set();
+      const positions = [];
+      for (const [series, {line, dot}, nearestIndex] of zip(dataSeries, trackerEls, getNearestIndices())) {
+
+        const xPos = scaleX(series[nearestIndex][0], nearestIndex);
+        const yPos = scaleY(series[nearestIndex][1]);
 
         if (xLines.has(xPos)) {
           hide(line);
@@ -536,10 +554,10 @@ export const drawGraph = (config) => {
         setAttrs(dot, {
           cx: xPos,
           cy: yPos,
+          [VISIBILITY]: timesScaled ? HIDDEN : VISIBLE,
         });
-        showhide(dot, !timesScaled);
 
-        push(positions, [nearestValue, points[nearestIndex][1]]);
+        push(positions, [xPos, yPos]);
       }
 
       updateKeyWithPositions(positions);
