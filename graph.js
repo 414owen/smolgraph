@@ -148,12 +148,15 @@ const debounce = (f, timeout) => {
 
 export const drawGraph = (config) => {
   const { data } = config;
+
+  const xIsStringy = isStr(data[0].data[0][0]);
+
   const {
     width = 800,
     height = 500,
     lineColors = genColors(data),
     maxTicks = {x: 15, y: 10},
-    onSelect = async (minX, maxX) => boundData(data, minX, maxX, xIsStringy),
+    loadData,
     axisLabels = {x: "X", y: "Y"},
     fontSize,
   } = config;
@@ -176,7 +179,6 @@ export const drawGraph = (config) => {
   const KEY_VSPACE = CHAR_HEIGHT * 1.4;
   const TEXT_CENTER_OFFSET = CHAR_HEIGHT * 0.3;
   const TEXT_TOP_OFFSET = CHAR_HEIGHT * 0.8;
-  const xIsStringy = typeof(data[0].data[0][0]) === "string";
 
   const dataStack = [data];
   const tickWidth = tick => CHAR_WIDTH * len(formatTickValue(tick));
@@ -370,10 +372,15 @@ export const drawGraph = (config) => {
       const maxXVisible = xToPoint(rightUntransformed);
 
       const expectedTimesScaled = timesScaled;
-      const newData = await onSelect(minXVisible, maxXVisible);
-      if (expectedTimesScaled !== timesScaled || len(newData[0].data) < 2) return;
 
-      timesScaled = 0;
+      const boundedData = boundData(data, minXVisible, maxXVisible, xIsStringy)
+      if (expectedTimesScaled !== timesScaled || len(boundedData[0].data) < 2) return;
+      dataStack.push(boundedData);
+      drawGraphData();
+
+      if (!loadData) return;
+      const newData = await loadData(minXVisible, maxXVisible);
+      if (expectedTimesScaled !== timesScaled || len(newData[0].data) < 2) return;
       dataStack.push(newData);
       drawGraphData();
     }, 300);

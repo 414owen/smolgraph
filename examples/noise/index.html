@@ -28,30 +28,71 @@ const mulberry32 = seed => () => {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
 
-// Generate smooth noise using a seeded PRNG
-const generateSmoothNoiseData = (nPoints, noiseLevel, seed) => {
-  const rand = mulberry32(seed);
-  const data = [];
-  let y = 0;
+let seed = 934.414183493471
 
-  for (let i = 0; i < nPoints; i++) {
-    data.push([i, y]);
-    y += (rand() - 0.5) * noiseLevel;
+// Deterministic fractal random walk (sampling-invariant).
+// Always returns 500 [x, y] points over [minX, maxX].
+const generateFractalWalkData = (minX, maxX, noiseLevel = 1, seed = 1, 
+  scale = 0.1,      // world units per base scale; larger => broader features
+  H = 0.001,        // 0..0.5 recommended; lower => rougher, faster divergence
+  fineLevels = 100, // # of fine dyadic levels (fixed for determinism)
+  coarseLevels = 12 // # of coarse dyadic levels (adds long-range drift)
+) => {
+  const POINTS = 500;
+  const step = (maxX - minX) / (POINTS - 1) || 0;
+
+  // Fast 32-bit hash -> [0,1)
+  const hash01 = (k, n, s) => {
+    let h = (s|0) ^ Math.imul(k|0, 374761393) ^ Math.imul(n|0, 668265263);
+    h ^= h >>> 13; h = Math.imul(h, 1274126177); h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  };
+
+  // Single coefficient ~[-1,1] (uniform is fine here)
+  const coef = (k, n, s) => hash01(k, n, s) * 2 - 1;
+
+  // Triangular "pyramid" bump Λ(u) on [0,1]: rise to 1 at 0.5, then fall
+  const pyramid = (u) => 1 - Math.abs(u * 2 - 1);
+
+  const fBmSchauder = (x, s) => {
+    const u = x / scale; // dimensionless coord (global!)
+    let y = 0;
+    for (let k = -coarseLevels; k <= fineLevels; k++) {
+      const sk = Math.pow(2, k);
+      const t = u * sk;
+      const n = Math.floor(t);
+      const frac = t - n;        // in [0,1)
+      const a = Math.pow(2, -(H + 0.5) * k); // amplitude per level
+      y += a * coef(k, n, s) * pyramid(frac);
+    }
+    return y;
+  };
+
+  const out = [];
+  for (let j = 0; j < POINTS; j++) {
+    const x = minX + j * step;
+    const y = fBmSchauder(x, seed | 0) * noiseLevel;
+    out.push([x, y]);
   }
-
-  return data;
+  return out;
 };
 
-let seed = 934.414183493471
-const gen = () => generateSmoothNoiseData(1000, 2, seed += 10);
-const graphConfig = () => ({
-  data: [
-    {label: "a", data: gen()},
-    {label: "b", data: gen()},
-    {label: "c", data: gen()},
-    {label: "d", data: gen()}
-  ]
-});
+const graphConfig = () => {
+  const loadData = (minX, maxX) => {
+    let s = seed;
+    const gen = () => generateFractalWalkData(minX, maxX, 2, s += 10);
+    return [
+      {label: "a", data: gen()},
+      {label: "b", data: gen()},
+      {label: "c", data: gen()},
+      {label: "d", data: gen()}
+    ];
+  };
+  return {
+    data: loadData(0, 1000),
+    loadData: loadData
+  };
+};
 
 let svg;
 const run = () => {
