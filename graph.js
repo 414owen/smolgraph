@@ -221,10 +221,9 @@ export const drawGraph = config => {
 
   const zoomOutButton = text("reset zoom", justClass("zoom-out"));
 
-  const drawGraphData = () => {
+  const drawGraphData = (data = dataStack.at(-1)) => {
     svg.innerHTML = "";
 
-    const data = dataStack.at(-1);
     const dataSeries = map(data, d => d.data);
     const lineLabels = map(data, d => d.label);
 
@@ -497,11 +496,9 @@ export const drawGraph = config => {
         const expectedTimesScaled = timesScaled;
 
         const boundedData = boundData(data, minXVisible, maxXVisible, xIsStringy);
-        if (expectedTimesScaled !== timesScaled || len(boundedData[0].data) < 2) {
-          return;
+        if (expectedTimesScaled === timesScaled && len(boundedData[0].data) >= 2) {
+          drawGraphData(boundedData);
         }
-        push(dataStack, boundedData);
-        drawGraphData();
 
         if (!loadData) {
           return;
