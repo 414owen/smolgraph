@@ -15,6 +15,14 @@
 <body>
 
 <div>
+<!-- For testing only
+<input type="checkbox" id="delay">
+  <label>artificial load delay</label>
+</input>
+</div>
+-->
+
+</div>
 <button id="regen">regenerate</button>
 </div>
 
@@ -79,10 +87,19 @@ const generateFractalWalkData = (minX, maxX, noiseLevel = 1, seed = 1,
   return out;
 };
 
-const graphConfig = () => {
-  const loadData = (minX, maxX) => {
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+const delayInput = document.getElementById("delay");
+
+const graphConfig = async () => {
+  let initialLoad = true;
+  const loadData = async (minX, maxX) => {
     let s = seed;
     const gen = () => generateFractalWalkData(minX, maxX, 2, s += 10);
+    if (delayInput && delayInput.checked && !initialLoad) {
+      await sleep(2000);
+    }
+    initialLoad = false;
     return [
       {label: "a", data: gen()},
       {label: "b", data: gen()},
@@ -91,7 +108,7 @@ const graphConfig = () => {
     ];
   };
   return {
-    data: loadData(0, 1000),
+    data: await loadData(0, 1000),
     width: 600,
     height: 400,
     loadData: loadData
@@ -99,9 +116,9 @@ const graphConfig = () => {
 };
 
 let svg;
-const run = () => {
+const run = async () => {
   console.log(`Seed: ${seed}`);
-  svg = drawGraph(graphConfig());
+  svg = drawGraph(await graphConfig());
   document.body.insertBefore(svg, document.body.firstChild);
 };
 run();

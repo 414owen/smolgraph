@@ -221,6 +221,12 @@ export const drawGraph = config => {
 
   const zoomOutButton = text("reset zoom", justClass("zoom-out"));
 
+  // Subsequent data loads shouldn't overwrite each other.
+  // We make sure the last request sent out for new data is the only
+  // one that actually gets rendered, by incrementing this before sending a request.
+  // And making sure it's the right value before rendering.
+  let dataLoadSentinel = 0;
+
   const drawGraphData = (data = dataStack.at(-1)) => {
     svg.innerHTML = "";
 
@@ -503,8 +509,11 @@ export const drawGraph = config => {
         if (!loadData) {
           return;
         }
+        let expectedDataLoadSentinel = ++dataLoadSentinel;
         const newData = await loadData(minXVisible, maxXVisible);
-        if (expectedTimesScaled !== timesScaled || len(newData[0].data) < 2) {
+        if (dataLoadSentinel !== expectedDataLoadSentinel ||
+            expectedTimesScaled !== timesScaled ||
+            len(newData[0].data) < 2) {
           return;
         }
         push(dataStack, newData);
