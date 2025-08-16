@@ -14,7 +14,15 @@
     "graph.d.ts"
   ],
   "style": "./graph.css",
-  "keywords": ["graph", "svg", "line graph"],
+  "keywords": [
+    "graph",
+    "svg",
+    "line graph"
+  ],
   "author": "Owen Shepherd <owen@owen.cafe>",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "eslint": "^9.33.0",
+    "globals": "^16.3.0"
+  }
 }
