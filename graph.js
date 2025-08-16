@@ -396,9 +396,7 @@ export const drawGraph = config => {
     /** @returns An index per data series */
     const getNearestIndices = () => {
       const xValue = xToPoint(xScreenPos);
-      const positions = [];
-      for (let i = 0; i < len(data); i++) {
-        const {data: points} = data[i];
+      return map(dataSeries, (points) => {
         const prevIndex = xIsStringy ?
           min(floor(xValue), len(firstSeries) - 1) :
           binarySearch(points, ([x]) => x - xValue);
@@ -408,14 +406,10 @@ export const drawGraph = config => {
           [prevIndex, nextIndex] :
           [points[prevIndex][0], points[nextIndex][0]];
 
-        const nearestIndex =
-          abs(xValue - prevX) < abs(xValue - nextX) ?
-            prevIndex :
-            nextIndex;
-
-        push(positions, nearestIndex);
-      }
-      return positions;
+        return abs(xValue - prevX) < abs(xValue - nextX) ?
+          prevIndex :
+          nextIndex;
+      });
     };
 
     const keyRect = rect(
@@ -553,7 +547,6 @@ export const drawGraph = config => {
 
         overlayEv(`${GESTURE}end`, () => {
           gestureStartScale = null;
-          gestureFocalX = null;
         });
 
 
