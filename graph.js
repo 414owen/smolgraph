@@ -513,7 +513,7 @@ export const drawGraph = config => {
         const expectedTimesScaled = timesScaled;
 
         const boundedData = boundData(data, minXVisible, maxXVisible, xIsStringy);
-        if (expectedTimesScaled === timesScaled && len(boundedData[0].data) >= 2 && len(boundedData[0]) < len(data[0])) {
+        if (expectedTimesScaled === timesScaled && len(boundedData[0].data) >= 2 && len(boundedData[0].data) < len(data[0].data)) {
           drawGraphData(boundedData);
         }
 
