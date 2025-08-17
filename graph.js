@@ -65,6 +65,10 @@ const calculateNiceScale = (values, maxTicks = 10) => {
 
   const niceStep = niceFraction * pow(10, exponent);
 
+  if (niceStep === 0) {
+    return;
+  }
+
   const niceMin = floor(dataMin / niceStep) * niceStep;
   const niceMax = Math.ceil(dataMax / niceStep) * niceStep;
 
@@ -228,8 +232,6 @@ export const drawGraph = config => {
   let dataLoadSentinel = 0;
 
   const drawGraphData = (data = dataStack.at(-1)) => {
-    svg.innerHTML = "";
-
     const dataSeries = map(data, d => d.data);
     const lineLabels = map(data, d => d.label);
 
@@ -243,6 +245,12 @@ export const drawGraph = config => {
        xValues = [...new Set(flatmap(dataSeries, d => map(d, a => a[0])))];
     }
 
+    // Zoomed in/out too far, can't guarantee correctness.
+    if (abs(xValues[0] - xValues.at(-1)) < 1e-10 ||
+      abs(xValues[0] - xValues.at(-1)) > 1e12) {
+      return;
+    }
+
     const firstSeries = dataSeries[0];
     const xLabel = xValue => xIsStringy ?
       (xValue < len(firstSeries) && isInt(xValue) ?
@@ -253,8 +261,11 @@ export const drawGraph = config => {
     const ySeries = map(dataSeries, d => map(d, a => a[1]));
     const yValues = ySeries.flat();
 
+    svg.innerHTML = "";
+
     // Calculate scales
     const xScaleData = calculateNiceScale(xValues, maxTicks.x);
+    if (!xScaleData) return;
     if (xIsStringy) {
       xScaleData.ticks = map(xScaleData.ticks, xLabel);
     }
