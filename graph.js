@@ -621,9 +621,10 @@ export const drawGraph = config => {
         updateTracker(event);
         xScreenPos = getScreenPosition(event);
 
-        const zoomFactor = 1.15;
+        const delta = event.wheelDelta;
+        const zoomFactor = 1 + abs(delta) / 900;
         const oldX = xScreenPos / currentScale;
-        if (event.wheelDelta > 0) {
+        if (delta > 0) {
           currentScale *= zoomFactor;
         } else {
           currentScale /= zoomFactor;
