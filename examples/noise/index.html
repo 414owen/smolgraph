@@ -15,13 +15,19 @@
 <body>
 
 <div>
-<input type="checkbox" id="delay">
+<input type="checkbox" id="fractalInput" checked>
+  <label>fractal input</label>
+</input>
+</div>
+
+<div>
+<input type="checkbox" id="delayInput">
   <label>artificial load delay</label>
 </input>
 </div>
 
 </div>
-<button id="regen">regenerate</button>
+<button id="regenButton">regenerate</button>
 </div>
 
 <script type="module">
@@ -46,7 +52,7 @@ const generateFractalWalkData = (minX, maxX, noiseLevel = 1, seed = 1,
   fineLevels = 100, // # of fine dyadic levels (fixed for determinism)
   coarseLevels = 12 // # of coarse dyadic levels (adds long-range drift)
 ) => {
-  const POINTS = 500;
+  const POINTS = fractalInput.checked ? 500 : 2000;
   const step = (maxX - minX) / (POINTS - 1) || 0;
 
   // Fast 32-bit hash -> [0,1)
@@ -87,8 +93,6 @@ const generateFractalWalkData = (minX, maxX, noiseLevel = 1, seed = 1,
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-const delayInput = document.getElementById("delay");
-
 const graphConfig = async () => {
   let initialLoad = true;
   const loadData = async (minX, maxX) => {
@@ -109,7 +113,7 @@ const graphConfig = async () => {
     data: await loadData(0, 1000),
     width: 600,
     height: 400,
-    loadData: loadData
+    loadData: fractalInput.checked ? loadData : undefined
   };
 };
 
@@ -119,15 +123,26 @@ const run = async () => {
   svg = drawGraph(await graphConfig());
   document.body.insertBefore(svg, document.body.firstChild);
 };
-run();
+await run();
 
-const button = document.getElementById("regen");
-
-button.onclick = () => {
+regenButton.onclick = () => {
   seed = Math.random() * 1000;
   svg.remove();
   run();
 };
+
+fractalInput.onclick = () => {
+  delayInput.disabled = !fractalInput.checked;
+  svg.remove();
+  run();
+};
+
+delayInput.onclick = () => {
+  svg.remove();
+  run();
+};
+
+fractalInput.onclick();
 
 </script>
 
