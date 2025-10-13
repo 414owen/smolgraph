@@ -145,8 +145,6 @@ const boundData = (origData, minX, maxX, xIsStringy) =>
 const addEv = (elem, name, handler) => {
   elem.addEventListener(name, e => {
     handler(e);
-    // e.preventDefault();
-    // e.stopPropagation();
   }, { passive: false });
 };
 
