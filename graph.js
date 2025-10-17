@@ -265,7 +265,7 @@ export const drawGraph = config => {
 
     // Calculate scales
     const xScaleData = calculateNiceScale(xValues, maxTicks.x);
-    if (!xScaleData) return;
+    if (!xScaleData) {return;}
     if (xIsStringy) {
       xScaleData.ticks = map(xScaleData.ticks, xLabel);
     }
@@ -458,42 +458,42 @@ export const drawGraph = config => {
       updateKeyRect(max(...map(keyTexts, elem => elem.getNumberOfChars())));
     };
 
-    const updateTracker = event => {
-      hideTrackers();
-      xScreenPos = getScreenPosition(event);
+     const updateTracker = event => {
+       hideTrackers();
+       xScreenPos = getScreenPosition(event);
 
-      const xLines = new Set();
-      const positions = [];
-      const tups = zip(dataSeries, trackerEls, getNearestIndices());
-      for (const [series, {line, dot}, nearestIndex] of tups) {
+       const xLines = new Set();
+       const positions = [];
+       const tups = zip(dataSeries, trackerEls, getNearestIndices());
+       for (const [series, {line, dot}, nearestIndex] of tups) {
 
-        const xPos = scaleX(series[nearestIndex][0], nearestIndex);
-        const yPos = scaleY(series[nearestIndex][1]);
+         const xPos = scaleX(series[nearestIndex][0], nearestIndex);
+         const yPos = scaleY(series[nearestIndex][1]);
 
-        if (xLines.has(xPos)) {
-          hide(line);
-        } else {
-          setAttrs(line, {
-            x1: xPos,
-            y1: marginTop,
-            x2: xPos,
-            y2: chartBottom,
-            [VISIBILITY]: VISIBLE,
-          });
-          xLines.add(xPos);
-        }
+         if (xLines.has(xPos)) {
+           hide(line);
+         } else {
+           setAttrs(line, {
+             x1: xPos,
+             y1: marginTop,
+             x2: xPos,
+             y2: chartBottom,
+             [VISIBILITY]: VISIBLE,
+           });
+           xLines.add(xPos);
+         }
 
-        setAttrs(dot, {
-          cx: xPos,
-          cy: yPos,
-          [VISIBILITY]: timesScaled ? HIDDEN : VISIBLE,
-        });
+         setAttrs(dot, {
+           cx: xPos,
+           cy: yPos,
+           [VISIBILITY]: timesScaled ? HIDDEN : VISIBLE,
+         });
 
-        push(positions, [xPos, yPos]);
-      }
+         push(positions, series[nearestIndex]);
+       }
 
-      updateKeyWithPositions(positions);
-    };
+       updateKeyWithPositions(positions);
+     };
 
     // These blocks aren't necessary, but help with minification
     {
@@ -512,8 +512,17 @@ export const drawGraph = config => {
 
         const expectedTimesScaled = timesScaled;
 
-        const boundedData = boundData(loadData ? data : dataStack[0], minXVisible, maxXVisible, xIsStringy);
-        if (expectedTimesScaled === timesScaled && len(boundedData[0].data) >= 2 && (!loadData || len(boundedData[0].data) < len(data[0].data))) {
+        const boundedData = boundData(
+          loadData ? data : dataStack[0],
+          minXVisible,
+          maxXVisible,
+          xIsStringy
+        );
+        if (
+          expectedTimesScaled === timesScaled &&
+          len(boundedData[0].data) >= 2 &&
+          (!loadData || len(boundedData[0].data) < len(data[0].data))
+        ) {
           drawGraphData(boundedData);
         }
 
