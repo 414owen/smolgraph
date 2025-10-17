@@ -37,7 +37,7 @@ const unzip = arrs => zip(...arrs);
 const isStr = a => typeof a === "string";
 
 const formatTickValue = value => isStr(value) ? value :
-  (isInt(value) ? `${value}` : `${value.toFixed(3)}`);
+  (isStr(value) || isInt(value) ? `${value}` : `${value.toFixed(3)}`);
 
 const formatTrackerLabel = (x, y) =>
     `(${formatTickValue(x)}, ${formatTickValue(y)})`;
@@ -453,7 +453,8 @@ export const drawGraph = config => {
     // With tracker positions
     const updateKeyWithPositions = positions => {
       updateKey(map(zip(lineLabels, positions),
-        ([label, [x, y]]) => `${label.padEnd(maxLabelLen)}  ${formatTrackerLabel(xLabel(x), y)}`
+        ([label, [x, y]]) =>
+          `${label.padEnd(maxLabelLen)}  ${formatTrackerLabel(xIsStringy ? x : xLabel(x), y)}`
       ));
       updateKeyRect(max(...map(keyTexts, elem => elem.getNumberOfChars())));
     };
