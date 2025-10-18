@@ -3,7 +3,7 @@
 // Utilities
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-const KEY_BAR_WIDTH = 24;
+const KEY_BAR_WIDTH = 18;
 const KEY_BAR_PADDING = 8;
 const KEY_BAR_HEIGHT = 3;
 const SMOLGRAPH = "smolgraph";
@@ -204,7 +204,7 @@ export const drawGraph = config => {
   addChild(svg, testText);
   const {width: testTextWidth, height: CHAR_HEIGHT } = testText.getBBox();
   const CHAR_WIDTH = testTextWidth/4;
-  const KEY_VSPACE = CHAR_HEIGHT * 1.4;
+  const KEY_PAD = CHAR_HEIGHT/2;
   const TEXT_CENTER_OFFSET = CHAR_HEIGHT * 0.3;
 
   // Estimate of the height of capital letters...
@@ -432,12 +432,12 @@ export const drawGraph = config => {
       marginLeft,
       marginTop,
       0,
-      KEY_VSPACE * (len(lineLabels) + 0.5),
+      KEY_PAD * 2 + CHAR_HEIGHT * len(lineLabels),
       justClass("key")
     );
 
     const updateKeyRect = (maxKeyChars) => {
-      setAttr(keyRect, "width", KEY_BAR_WIDTH + KEY_BAR_PADDING/2 + CHAR_WIDTH * maxKeyChars);
+      setAttr(keyRect, "width", KEY_PAD * 2 + KEY_BAR_WIDTH + KEY_BAR_PADDING + CHAR_WIDTH * maxKeyChars);
     };
 
     const maxLabelLen = max(...map(lineLabels, k => len(k)));
@@ -672,7 +672,7 @@ export const drawGraph = config => {
     const keyLayer = el("g", justClass("key"), [
       keyRect,
       ...flatmap(lineLabels, (keyLabel, i) => {
-        const y = marginTop + KEY_VSPACE * (i + 1);
+        const y = marginTop + KEY_PAD + CHAR_HEIGHT * (i + 1);
         const textEl = text(keyLabel, {
           y,
           x: marginLeft + KEY_BAR_WIDTH,
