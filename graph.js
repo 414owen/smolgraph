@@ -3,8 +3,8 @@
 // Utilities
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-const KEY_BAR_WIDTH = 24;
-const KEY_BAR_PADDING = 8;
+const KEY_BAR_WIDTH = 8;
+const KEY_BAR_RPAD = 8;
 const KEY_BAR_HEIGHT = 3;
 const SMOLGRAPH = "smolgraph";
 const LINE_WIDTH = 1;
@@ -204,11 +204,11 @@ export const drawGraph = config => {
   addChild(svg, testText);
   const {width: testTextWidth, height: CHAR_HEIGHT } = testText.getBBox();
   const CHAR_WIDTH = testTextWidth/4;
-  const KEY_VSPACE = CHAR_HEIGHT * 1.4;
+  const KEY_PAD = CHAR_HEIGHT / 2;
   const TEXT_CENTER_OFFSET = CHAR_HEIGHT * 0.3;
 
   // Estimate of the height of capital letters...
-  const TEXT_TOP_OFFSET = CHAR_HEIGHT * 0.8;
+  const TEXT_TOP_OFFSET = CHAR_HEIGHT * 0.6;
 
   const dataStack = [allData];
   const tickWidth = tick => CHAR_WIDTH * len(formatTickValue(tick));
@@ -432,12 +432,12 @@ export const drawGraph = config => {
       marginLeft,
       marginTop,
       0,
-      KEY_VSPACE * (len(lineLabels) + 0.5),
+      KEY_PAD * 2 + TEXT_TOP_OFFSET + CHAR_HEIGHT * (len(lineLabels) - 1),
       justClass("key")
     );
 
     const updateKeyRect = (maxKeyChars) => {
-      setAttr(keyRect, "width", KEY_BAR_WIDTH + KEY_BAR_PADDING/2 + CHAR_WIDTH * maxKeyChars);
+      setAttr(keyRect, "width", KEY_PAD * 2 + KEY_BAR_WIDTH + KEY_BAR_RPAD + CHAR_WIDTH * maxKeyChars);
     };
 
     const maxLabelLen = max(...map(lineLabels, k => len(k)));
@@ -672,18 +672,18 @@ export const drawGraph = config => {
     const keyLayer = el("g", justClass("key"), [
       keyRect,
       ...flatmap(lineLabels, (keyLabel, i) => {
-        const y = marginTop + KEY_VSPACE * (i + 1);
+        const y = marginTop + KEY_PAD + TEXT_TOP_OFFSET + CHAR_HEIGHT * i;
         const textEl = text(keyLabel, {
           y,
-          x: marginLeft + KEY_BAR_WIDTH,
+          x: marginLeft + KEY_PAD + KEY_BAR_WIDTH + KEY_BAR_RPAD,
         });
         push(keyTexts, textEl);
         return [
           textEl,
           rect(
-            marginLeft + KEY_BAR_PADDING / 2,
-            y - CHAR_HEIGHT / 3 - KEY_BAR_HEIGHT / 2,
-            KEY_BAR_WIDTH - KEY_BAR_PADDING,
+            marginLeft + KEY_PAD ,
+            y - CHAR_HEIGHT / 4 - KEY_BAR_HEIGHT / 2,
+            KEY_BAR_WIDTH,
             KEY_BAR_HEIGHT,
             {fill: lineColors[i]}
           )
