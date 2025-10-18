@@ -376,9 +376,21 @@ export const drawGraph = config => {
       });
     }));
 
-    addChild(svg, el("g", {
-      "clip-path": `inset(${marginTop} ${marginRight} ${marginBottom} ${marginLeft}) view-box`,
-    }, [pathGroup]));
+    addChildren(svg, [
+      el("defs", {}, [
+        el("clipPath", {id: "chart-clip"}, [
+          el("rect", {
+            x: marginLeft,
+            y: marginTop,
+            width: innerWidth,
+            height: innerHeight
+          })
+        ])
+      ]),
+      el("g", {
+        "clip-path": "url(#chart-clip)",
+      }, [pathGroup])
+    ]);
 
     const overlay = rect(
       0, marginTop, width, innerHeight,
