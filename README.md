@@ -6,7 +6,7 @@ An extremely small, easy to use multi-line-graph library.
 
 ## Example
 
-![example graph](./example.svg)
+![example graph](./examples/static.svg)
 
 Live example: https://414owen.github.io/smolgraph/
 
