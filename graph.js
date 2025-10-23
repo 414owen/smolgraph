@@ -42,13 +42,17 @@ const formatTickValue = value => isStr(value) ? value :
 const formatTrackerLabel = (x, y) =>
     `(${formatTickValue(x)}, ${formatTickValue(y)})`;
 
+const bounds = arr => {
+  const twoargs = f => (a, b) => f(a, b);
+  return [arr.reduce(twoargs(min)), arr.reduce(twoargs(max))];
+};
+
 const calculateNiceScale = (values, maxTicks = 10) => {
   if (len(values) === 0) {
     return { min: 0, max: 0, tickStep: 1, ticks: [0] };
   }
 
-  const dataMin = min(...values);
-  const dataMax = max(...values);
+  const [dataMin, dataMax] = bounds(values);
   const range = dataMax - dataMin;
   const roughStep = range / maxTicks;
 
@@ -269,7 +273,7 @@ export const drawGraph = config => {
     if (xIsStringy) {
       xScaleData.ticks = map(xScaleData.ticks, xLabel);
     }
-    const yScaleData = calculateNiceScale([min(...yValues), max(...yValues)], maxTicks.y);
+    const yScaleData = calculateNiceScale(bounds(yValues), maxTicks.y);
 
     const marginLeft = CHAR_HEIGHT + CHAR_WIDTH * 3 +
       max(tickWidth(yScaleData.min), tickWidth(yScaleData.max));
