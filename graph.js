@@ -382,11 +382,8 @@ export const drawGraph = config => {
     addChildren(svg, [
       el("defs", {}, [
         el("clipPath", {id: "chart-clip"}, [
-          el("rect", {
-            x: marginLeft,
-            y: marginTop,
-            width: innerWidth,
-            height: innerHeight
+          el("path", {
+            d: `M${marginLeft},${marginTop}h${innerWidth}v${innerHeight}h-${innerWidth}`
           })
         ])
       ]),
