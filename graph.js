@@ -37,15 +37,14 @@ const unzip = arrs => zip(...arrs);
 const isStr = a => typeof a === "string";
 
 const formatTickValue = value => isStr(value) ? value :
-  (isStr(value) || isInt(value) ? `${value}` : `${value.toFixed(3)}`);
+  (isStr(value) || isInt(value) ? `${value}` : `${Number(value.toFixed(3))}`);
 
 const formatTrackerLabel = (x, y) =>
     `(${formatTickValue(x)}, ${formatTickValue(y)})`;
 
-const bounds = arr => {
-  const twoargs = f => (a, b) => f(a, b);
-  return [arr.reduce(twoargs(min)), arr.reduce(twoargs(max))];
-};
+const twoargs = f => (a, b) => f(a, b);
+const maximum = arr => arr.reduce(twoargs(max));
+const bounds = arr => [arr.reduce(twoargs(min)), maximum(arr)];
 
 const calculateNiceScale = (values, maxTicks = 10) => {
   if (len(values) === 0) {
@@ -276,7 +275,7 @@ export const drawGraph = config => {
     const yScaleData = calculateNiceScale(bounds(yValues), maxTicks.y);
 
     const marginLeft = CHAR_HEIGHT + CHAR_WIDTH * 3 +
-      max(tickWidth(yScaleData.min), tickWidth(yScaleData.max));
+      maximum(map(yScaleData.ticks, tickWidth));
     const marginRight = tickWidth(xLabel(xScaleData.max)) / 2 + CHAR_WIDTH;
 
     const marginTop = CHAR_HEIGHT/2 + CHAR_WIDTH;
