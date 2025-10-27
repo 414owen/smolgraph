@@ -27,6 +27,10 @@ const map = (arr, f) => arr.map(f);
 const push = (arr, el) => arr.push(el);
 const isInt = n => Number.isInteger(n);
 
+// Global mutable state. Sue me.
+// We need to differentiate these IDs between calls.
+let clipPathCounter = 0;
+
 const zip = (...args) =>
   map(args[0], (_, i) =>
     map(args, arg => arg[i])
@@ -381,14 +385,14 @@ export const drawGraph = config => {
 
     addChildren(svg, [
       el("defs", {}, [
-        el("clipPath", {id: "chart-clip"}, [
+        el("clipPath", {id: `${SMOLGRAPH}-chart-clip-${clipPathCounter}`}, [
           el("path", {
             d: `M${marginLeft},${marginTop}h${innerWidth}v${innerHeight}h-${innerWidth}`
           })
         ])
       ]),
       el("g", {
-        "clip-path": "url(#chart-clip)",
+        "clip-path": `url(#${SMOLGRAPH}-chart-clip-${clipPathCounter++})`,
       }, [pathGroup])
     ]);
 
