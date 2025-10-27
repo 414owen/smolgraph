@@ -353,16 +353,15 @@ export const drawGraph = config => {
 
       // Draw axis labels
       {
-        const textAnchor = MIDDLE;
         addChild(svg, text(axisLabels.x, {
           x: marginLeft + innerWidth / 2,
           y: TICK_Y + CHAR_WIDTH + CHAR_HEIGHT,
-          textAnchor,
+          "text-anchor": MIDDLE,
         }));
         {
           const y = marginTop + innerHeight / 2;
           addChild(svg, text(axisLabels.y, {
-            textAnchor,
+            "text-anchor": MIDDLE,
             [TRANSFORM]: `translate(${CHAR_HEIGHT},${y}) rotate(-90)`
           }));
         }
