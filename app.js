@@ -53,6 +53,10 @@ const generateFractalWalkData = (minX, maxX, noiseLevel = 1, seed = 1,
 
 const graphConfig = numLines => {
   const loadData = (minX, maxX) => {
+    if (maxX - minX < 10) {
+      const mid = (minX + maxX) / 2;
+      return loadData(mid - 5, mid + 5);
+    }
 
     minX = Math.max(minX, 0);
     maxX = Math.min(maxX, 10000);
