@@ -3,8 +3,8 @@
 // Utilities
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-const KEY_BAR_WIDTH = 24;
-const KEY_BAR_PADDING = 8;
+const KEY_BAR_WIDTH = 8;
+const KEY_BAR_RPAD = 8;
 const KEY_BAR_HEIGHT = 3;
 const SMOLGRAPH = "smolgraph";
 const LINE_WIDTH = 1;
@@ -27,6 +27,10 @@ const map = (arr, f) => arr.map(f);
 const push = (arr, el) => arr.push(el);
 const isInt = n => Number.isInteger(n);
 
+// Global mutable state. Sue me.
+// We need to differentiate these IDs between calls.
+let clipPathCounter = 0;
+
 const zip = (...args) =>
   map(args[0], (_, i) =>
     map(args, arg => arg[i])
@@ -37,18 +41,21 @@ const unzip = arrs => zip(...arrs);
 const isStr = a => typeof a === "string";
 
 const formatTickValue = value => isStr(value) ? value :
-  (isInt(value) ? `${value}` : `${value.toFixed(3)}`);
+  (isStr(value) || isInt(value) ? `${value}` : `${Number(value.toFixed(3))}`);
 
 const formatTrackerLabel = (x, y) =>
     `(${formatTickValue(x)}, ${formatTickValue(y)})`;
+
+const twoargs = f => (a, b) => f(a, b);
+const maximum = arr => arr.reduce(twoargs(max));
+const bounds = arr => [arr.reduce(twoargs(min)), maximum(arr)];
 
 const calculateNiceScale = (values, maxTicks = 10) => {
   if (len(values) === 0) {
     return { min: 0, max: 0, tickStep: 1, ticks: [0] };
   }
 
-  const dataMin = min(...values);
-  const dataMax = max(...values);
+  const [dataMin, dataMax] = bounds(values);
   const range = dataMax - dataMin;
   const roughStep = range / maxTicks;
 
@@ -204,11 +211,11 @@ export const drawGraph = config => {
   addChild(svg, testText);
   const {width: testTextWidth, height: CHAR_HEIGHT } = testText.getBBox();
   const CHAR_WIDTH = testTextWidth/4;
-  const KEY_VSPACE = CHAR_HEIGHT * 1.4;
+  const KEY_PAD = CHAR_HEIGHT / 2;
   const TEXT_CENTER_OFFSET = CHAR_HEIGHT * 0.3;
 
   // Estimate of the height of capital letters...
-  const TEXT_TOP_OFFSET = CHAR_HEIGHT * 0.8;
+  const TEXT_TOP_OFFSET = CHAR_HEIGHT * 0.6;
 
   const dataStack = [allData];
   const tickWidth = tick => CHAR_WIDTH * len(formatTickValue(tick));
@@ -265,14 +272,14 @@ export const drawGraph = config => {
 
     // Calculate scales
     const xScaleData = calculateNiceScale(xValues, maxTicks.x);
-    if (!xScaleData) return;
+    if (!xScaleData) {return;}
     if (xIsStringy) {
       xScaleData.ticks = map(xScaleData.ticks, xLabel);
     }
-    const yScaleData = calculateNiceScale([min(...yValues), max(...yValues)], maxTicks.y);
+    const yScaleData = calculateNiceScale(bounds(yValues), maxTicks.y);
 
     const marginLeft = CHAR_HEIGHT + CHAR_WIDTH * 3 +
-      max(tickWidth(yScaleData.min), tickWidth(yScaleData.max));
+      maximum(map(yScaleData.ticks, tickWidth));
     const marginRight = tickWidth(xLabel(xScaleData.max)) / 2 + CHAR_WIDTH;
 
     const marginTop = CHAR_HEIGHT/2 + CHAR_WIDTH;
@@ -346,16 +353,15 @@ export const drawGraph = config => {
 
       // Draw axis labels
       {
-        const textAnchor = MIDDLE;
         addChild(svg, text(axisLabels.x, {
           x: marginLeft + innerWidth / 2,
           y: TICK_Y + CHAR_WIDTH + CHAR_HEIGHT,
-          textAnchor,
+          "text-anchor": MIDDLE,
         }));
         {
           const y = marginTop + innerHeight / 2;
           addChild(svg, text(axisLabels.y, {
-            textAnchor,
+            "text-anchor": MIDDLE,
             [TRANSFORM]: `translate(${CHAR_HEIGHT},${y}) rotate(-90)`
           }));
         }
@@ -376,9 +382,18 @@ export const drawGraph = config => {
       });
     }));
 
-    addChild(svg, el("g", {
-      "clip-path": `inset(${marginTop} ${marginRight} ${marginBottom} ${marginLeft}) view-box`,
-    }, [pathGroup]));
+    addChildren(svg, [
+      el("defs", {}, [
+        el("clipPath", {id: `${SMOLGRAPH}-chart-clip-${clipPathCounter}`}, [
+          el("path", {
+            d: `M${marginLeft},${marginTop}h${innerWidth}v${innerHeight}h-${innerWidth}`
+          })
+        ])
+      ]),
+      el("g", {
+        "clip-path": `url(#${SMOLGRAPH}-chart-clip-${clipPathCounter++})`,
+      }, [pathGroup])
+    ]);
 
     const overlay = rect(
       0, marginTop, width, innerHeight,
@@ -432,12 +447,12 @@ export const drawGraph = config => {
       marginLeft,
       marginTop,
       0,
-      KEY_VSPACE * (len(lineLabels) + 0.5),
+      KEY_PAD * 2 + TEXT_TOP_OFFSET + CHAR_HEIGHT * (len(lineLabels) - 1),
       justClass("key")
     );
 
     const updateKeyRect = (maxKeyChars) => {
-      setAttr(keyRect, "width", KEY_BAR_WIDTH + KEY_BAR_PADDING/2 + CHAR_WIDTH * maxKeyChars);
+      setAttr(keyRect, "width", KEY_PAD * 2 + KEY_BAR_WIDTH + KEY_BAR_RPAD + CHAR_WIDTH * maxKeyChars);
     };
 
     const maxLabelLen = max(...map(lineLabels, k => len(k)));
@@ -453,47 +468,48 @@ export const drawGraph = config => {
     // With tracker positions
     const updateKeyWithPositions = positions => {
       updateKey(map(zip(lineLabels, positions),
-        ([label, [x, y]]) => `${label.padEnd(maxLabelLen)}  ${formatTrackerLabel(xLabel(x), y)}`
+        ([label, [x, y]]) =>
+          `${label.padEnd(maxLabelLen)}  ${formatTrackerLabel(xIsStringy ? x : xLabel(x), y)}`
       ));
       updateKeyRect(max(...map(keyTexts, elem => elem.getNumberOfChars())));
     };
 
-    const updateTracker = event => {
-      hideTrackers();
-      xScreenPos = getScreenPosition(event);
+     const updateTracker = event => {
+       hideTrackers();
+       xScreenPos = getScreenPosition(event);
 
-      const xLines = new Set();
-      const positions = [];
-      const tups = zip(dataSeries, trackerEls, getNearestIndices());
-      for (const [series, {line, dot}, nearestIndex] of tups) {
+       const xLines = new Set();
+       const positions = [];
+       const tups = zip(dataSeries, trackerEls, getNearestIndices());
+       for (const [series, {line, dot}, nearestIndex] of tups) {
 
-        const xPos = scaleX(series[nearestIndex][0], nearestIndex);
-        const yPos = scaleY(series[nearestIndex][1]);
+         const xPos = scaleX(series[nearestIndex][0], nearestIndex);
+         const yPos = scaleY(series[nearestIndex][1]);
 
-        if (xLines.has(xPos)) {
-          hide(line);
-        } else {
-          setAttrs(line, {
-            x1: xPos,
-            y1: marginTop,
-            x2: xPos,
-            y2: chartBottom,
-            [VISIBILITY]: VISIBLE,
-          });
-          xLines.add(xPos);
-        }
+         if (xLines.has(xPos)) {
+           hide(line);
+         } else {
+           setAttrs(line, {
+             x1: xPos,
+             y1: marginTop,
+             x2: xPos,
+             y2: chartBottom,
+             [VISIBILITY]: VISIBLE,
+           });
+           xLines.add(xPos);
+         }
 
-        setAttrs(dot, {
-          cx: xPos,
-          cy: yPos,
-          [VISIBILITY]: timesScaled ? HIDDEN : VISIBLE,
-        });
+         setAttrs(dot, {
+           cx: xPos,
+           cy: yPos,
+           [VISIBILITY]: timesScaled ? HIDDEN : VISIBLE,
+         });
 
-        push(positions, [xPos, yPos]);
-      }
+         push(positions, series[nearestIndex]);
+       }
 
-      updateKeyWithPositions(positions);
-    };
+       updateKeyWithPositions(positions);
+     };
 
     // These blocks aren't necessary, but help with minification
     {
@@ -512,12 +528,22 @@ export const drawGraph = config => {
 
         const expectedTimesScaled = timesScaled;
 
-        const boundedData = boundData(data, minXVisible, maxXVisible, xIsStringy);
-        if (expectedTimesScaled === timesScaled && len(boundedData[0].data) >= 2 && len(boundedData[0]) < len(data[0])) {
+        const boundedData = boundData(
+          loadData ? data : dataStack[0],
+          minXVisible,
+          maxXVisible,
+          xIsStringy
+        );
+        if (
+          expectedTimesScaled === timesScaled &&
+          len(boundedData[0].data) >= 2 &&
+          (!loadData || len(boundedData[0].data) < len(data[0].data))
+        ) {
           drawGraphData(boundedData);
         }
 
         if (!loadData) {
+          push(dataStack, boundedData);
           return;
         }
         let expectedDataLoadSentinel = ++dataLoadSentinel;
@@ -661,18 +687,18 @@ export const drawGraph = config => {
     const keyLayer = el("g", justClass("key"), [
       keyRect,
       ...flatmap(lineLabels, (keyLabel, i) => {
-        const y = marginTop + KEY_VSPACE * (i + 1);
+        const y = marginTop + KEY_PAD + TEXT_TOP_OFFSET + CHAR_HEIGHT * i;
         const textEl = text(keyLabel, {
           y,
-          x: marginLeft + KEY_BAR_WIDTH,
+          x: marginLeft + KEY_PAD + KEY_BAR_WIDTH + KEY_BAR_RPAD,
         });
         push(keyTexts, textEl);
         return [
           textEl,
           rect(
-            marginLeft + KEY_BAR_PADDING / 2,
-            y - CHAR_HEIGHT / 3 - KEY_BAR_HEIGHT / 2,
-            KEY_BAR_WIDTH - KEY_BAR_PADDING,
+            marginLeft + KEY_PAD ,
+            y - CHAR_HEIGHT / 4 - KEY_BAR_HEIGHT / 2,
+            KEY_BAR_WIDTH,
             KEY_BAR_HEIGHT,
             {fill: lineColors[i]}
           )
