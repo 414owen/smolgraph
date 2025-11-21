@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
-/** A single [x, y] point. */
-export type XYPoint = [number, number];
+/** A single {x, y} point. */
+export type XYPoint = [string | number, number];
 
 /** A labeled series of points.
     This is shown as a single line. */

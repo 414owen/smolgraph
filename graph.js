@@ -146,7 +146,7 @@ const boundData = (origData, minX, maxX, xIsStringy) =>
     label,
     data: xIsStringy ?
       data.slice(max(0, minX), max(0, max(minX, maxX))) :
-      data.filter(([x]) => x >= minX && x <= maxX)
+      data.filter(({x}) => x >= minX && x <= maxX)
   }));
 
 const addEv = (elem, name, handler) => {
@@ -242,14 +242,14 @@ export const drawGraph = config => {
     const dataSeries = map(data, d => d.data);
     const lineLabels = map(data, d => d.label);
 
-    const xIsStringy = isStr(dataSeries[0][0][0]);
+    const xIsStringy = isStr(dataSeries[0][0].x);
 
     let xValues;
     if (xIsStringy) {
       xValues = map(dataSeries[0], (_, i) => i);
       xValues.sort((a, b) => a - b);
     } else {
-       xValues = [...new Set(flatmap(dataSeries, d => map(d, a => a[0])))];
+       xValues = [...new Set(flatmap(dataSeries, d => map(d, a => a.x)))];
     }
 
     // Zoomed in/out too far, can't guarantee correctness.
@@ -261,11 +261,11 @@ export const drawGraph = config => {
     const firstSeries = dataSeries[0];
     const xLabel = xValue => xIsStringy ?
       (xValue < len(firstSeries) && isInt(xValue) ?
-        firstSeries[xValue][0] :
+        firstSeries[xValue].x :
         "") :
       xValue;
 
-    const ySeries = map(dataSeries, d => map(d, a => a[1]));
+    const ySeries = map(dataSeries, d => map(d, a => a.y));
     const yValues = ySeries.flat();
 
     svg.innerHTML = "";
@@ -370,9 +370,9 @@ export const drawGraph = config => {
 
     // Draw data lines
     const pathGroup = el("g", justClass("paths"), map(data, ({data: points}, idx) => {
-      const [firstX, firstY] = points[0];
+      const {x: firstX, y: firstY} = points[0];
       const initial = `M${scaleX(firstX, 0)},${scaleY(firstY)}`;
-      const rest = map(points.slice(1), ([x, y], i) => `L${scaleX(x, i + 1)},${scaleY(y)}`);
+      const rest = map(points.slice(1), ({x, y}, i) => `L${scaleX(x, i + 1)},${scaleY(y)}`);
       const linePath = initial + rest.join("");
       return el("path", {
         d: linePath,
@@ -430,12 +430,12 @@ export const drawGraph = config => {
       return map(dataSeries, (points) => {
         const prevIndex = xIsStringy ?
           min(floor(xValue), len(firstSeries) - 1) :
-          binarySearch(points, ([x]) => x - xValue);
+          binarySearch(points, ({x}) => x - xValue);
         const nextIndex = min(len(points) - 1, prevIndex + 1);
 
         const [prevX, nextX] = xIsStringy ?
           [prevIndex, nextIndex] :
-          [points[prevIndex][0], points[nextIndex][0]];
+          [points[prevIndex].x, points[nextIndex].x];
 
         return abs(xValue - prevX) < abs(xValue - nextX) ?
           prevIndex :
@@ -468,7 +468,7 @@ export const drawGraph = config => {
     // With tracker positions
     const updateKeyWithPositions = positions => {
       updateKey(map(zip(lineLabels, positions),
-        ([label, [x, y]]) =>
+        ([label, {x, y}]) =>
           `${label.padEnd(maxLabelLen)}  ${formatTrackerLabel(xIsStringy ? x : xLabel(x), y)}`
       ));
       updateKeyRect(max(...map(keyTexts, elem => elem.getNumberOfChars())));
@@ -483,8 +483,8 @@ export const drawGraph = config => {
        const tups = zip(dataSeries, trackerEls, getNearestIndices());
        for (const [series, {line, dot}, nearestIndex] of tups) {
 
-         const xPos = scaleX(series[nearestIndex][0], nearestIndex);
-         const yPos = scaleY(series[nearestIndex][1]);
+         const xPos = scaleX(series[nearestIndex].x, nearestIndex);
+         const yPos = scaleY(series[nearestIndex].y);
 
          if (xLines.has(xPos)) {
            hide(line);
