@@ -145,7 +145,7 @@ const boundData = (origData, minX, maxX, xIsStringy) =>
   map(structuredClone(origData), ({data,label}) => ({
     label,
     data: xIsStringy ?
-      data.slice(minX, maxX) :
+      data.slice(max(0, minX), max(0, max(minX, maxX))) :
       data.filter(([x]) => x >= minX && x <= maxX)
   }));
 
