@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 
 /** A single {x, y} point. */
-export type XYPoint = [string | number, number];
+export type NumberPoint = {x: number, y: number];
+export type StringPoint = {x: string, y: number];
 
 /** A labeled series of points.
     This is shown as a single line. */
 export interface Series {
-  data: XYPoint[];
+  data: NumberPoint[] | StringPoint[];
   label: string;
 }
 

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smolgraph Stringy Test</title>
+    <link rel="stylesheet" href="/graph.css">
+    <style>
+        body { background: #111; }
+    </style>
+</head>
+<body>
+    <div id="graph-container"></div>
+
+    <script type="module">
+        import { drawGraph } from '/graph.js';
+
+        const stringyData = [
+            {
+                label: "Metrics",
+                data: [
+                    { x: "Jan", y: 100 },
+                    { x: "Feb", y: 150 },
+                    { x: "Mar", y: 50 },
+                    { x: "Apr", y: 200 },
+                    { x: "May", y: 120 }
+                ]
+            }
+        ];
+
+        const graph = drawGraph({
+            data: stringyData,
+            width: 800,
+            height: 500,
+            axisLabels: { x: "Month", y: "Value" }
+        });
+
+        document.getElementById('graph-container').appendChild(graph);
+    </script>
+</body>
+</html>

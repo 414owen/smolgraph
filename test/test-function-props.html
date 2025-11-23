@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graph Function Properties Test</title>
+    <link rel="stylesheet" href="/graph.css">
+    <style>
+        body { background: #111; }
+    </style>
+</head>
+<body>
+    <script type="module">
+        import { drawGraph } from '/graph.js';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const xTickAmount = parseInt(urlParams.get('xTickAmount')) || 10;
+        const yTickAmount = parseInt(urlParams.get('yTickAmount')) || 10;
+        const xAxisLabel = urlParams.get('xAxisLabel') || "X";
+        const yAxisLabel = urlParams.get('yAxisLabel') || "Y";
+
+        let config = {
+            data: [
+                {
+                    label: 'Series 1',
+                    data: [
+                        { x: 0, y: 10 }, { x: 1, y: 20 }, { x: 2, y: 15 },
+                        { x: 3, y: 25 }, { x: 4, y: 22 }, { x: 5, y: 30 },
+                        { x: 6, y: 28 }, { x: 7, y: 35 }, { x: 8, y: 32 },
+                        { x: 9, y: 40 }, { x: 10, y: 38 },
+                    ]
+                }
+            ],
+            maxTicks: {
+                x: xTickAmount,
+                y: yTickAmount
+            },
+            axisLabels: {
+                x: xAxisLabel,
+                y: yAxisLabel
+            },
+            width: 800,
+            height: 500,
+        };
+
+        const graphElement = drawGraph(config);
+        document.body.appendChild(graphElement);
+    </script>
+</body>
+</html>

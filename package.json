@@ -1,6 +1,6 @@
 {
   "name": "smolgraph",
-  "version": "2.1.7",
+  "version": "2.1.8",
   "type": "module",
   "exports": {
     ".": {
@@ -21,8 +21,20 @@
   ],
   "author": "Owen Shepherd <owen@owen.cafe>",
   "license": "MIT",
+  "scripts": {
+    "test": "http-server -p 8080 & PID=$! && npx wdio wdio.conf.js ; kill $PID",
+    "minify": "uglifyjs --config-file uglifyjs.json graph.js > minified.js"
+  },
   "dependencies": {
     "eslint": "^9.33.0",
     "globals": "^16.3.0"
+  },
+  "devDependencies": {
+    "@wdio/cli": "^9.20.1",
+    "@wdio/local-runner": "^9.20.1",
+    "@wdio/mocha-framework": "^9.20.1",
+    "@wdio/spec-reporter": "^9.20.0",
+    "geckodriver": "^6.1.0",
+    "http-server": "^14.1.1"
   }
 }

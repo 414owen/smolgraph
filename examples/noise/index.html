@@ -86,7 +86,7 @@ const generateFractalWalkData = (minX, maxX, noiseLevel = 1, seed = 1,
   for (let j = 0; j < POINTS; j++) {
     const x = minX + j * step;
     const y = fBmSchauder(x, seed | 0) * noiseLevel;
-    out.push([x, y]);
+    out.push({x, y});
   }
   return out;
 };

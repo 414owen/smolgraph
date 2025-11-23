@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smolgraph Numeric Test</title>
+    <link rel="stylesheet" href="/graph.css">
+    <style>
+        body { background: #111; }
+    </style>
+</head>
+<body>
+    <div id="graph-container"></div>
+
+    <script type="module">
+        import { drawGraph } from '/graph.js';
+
+        const createSeries = (label, base, amplitude, slope) => ({
+            label,
+            data: Array.from({ length: 400 }, (_, idx) => ({
+                x: idx,
+                y: base + Math.sin(idx / 5) * amplitude + idx * slope
+            }))
+        });
+
+        const numericData = [
+            createSeries("Series 1", 20, 10, 0.3),
+            createSeries("Series 2", 10, 8, 0.4)
+        ];
+
+        const graph = drawGraph({
+            data: numericData,
+            width: 800,
+            height: 500,
+            axisLabels: { x: "Numeric X", y: "Numeric Y" }
+        });
+
+        document.getElementById('graph-container').appendChild(graph);
+    </script>
+</body>
+</html>

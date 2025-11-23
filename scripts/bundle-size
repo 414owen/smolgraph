@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+echo "Terser:"
+minified="$(terser --config-file uglifyjs.json graph.js)"
+count="$(wc -c <<< "$minified")"
+printf "Minified size: %sb\n" "$count"
+count="$((gzip | wc -c) <<< "$minified")"
+printf "Minified gzipped size: %sb\n" "$count"
+
+echo "UglifyJS:"
+minified="$(uglifyjs --config-file uglifyjs.json graph.js)"
+count="$(wc -c <<< "$minified")"
+printf "Minified size: %sb\n" "$count"
+count="$((gzip | wc -c) <<< "$minified")"
+printf "Minified gzipped size: %sb\n" "$count"
+
