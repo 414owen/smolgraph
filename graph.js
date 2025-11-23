@@ -41,10 +41,10 @@ const unzip = arrs => zip(...arrs);
 const isStr = a => typeof a === "string";
 
 const formatTickValue = value => isStr(value) ? value :
-  (isStr(value) || isInt(value) ? `${value}` : `${Number(value.toFixed(3))}`);
+  (isInt(value) ? `${value}` : `${Number(value.toFixed(3))}`);
 
-const formatTrackerLabel = (x, y) =>
-    `(${formatTickValue(x)}, ${formatTickValue(y)})`;
+const formatTrackerLabel = ({x, y, label}) =>
+    `(${formatTickValue(label)}, ${formatTickValue(y)})`;
 
 const twoargs = f => (a, b) => f(a, b);
 const maximum = arr => arr.reduce(twoargs(max));
@@ -141,12 +141,10 @@ const genColors = data => map(data, (_, n) => `hsl(${n * 360 / len(data) + 80},4
 const rect = (x, y, width, height, rest = {}) =>
   el("rect", {x, y, width, height, ...rest});
 
-const boundData = (origData, minX, maxX, xIsStringy) =>
+const boundData = (origData, minX, maxX) =>
   map(structuredClone(origData), ({data,label}) => ({
     label,
-    data: xIsStringy ?
-      data.slice(max(0, minX), max(0, max(minX, maxX))) :
-      data.filter(({x}) => x >= minX && x <= maxX)
+    data: data.filter(({x}) => x >= minX && x <= maxX)
   }));
 
 const addEv = (elem, name, handler) => {
@@ -186,8 +184,22 @@ const binarySearch = (values, f) => {
   return pos;
 };
 
+const normalizeData = data => {
+  for (const series of data) {
+    let i = 0;
+    for (const point of series.data) {
+      const { x } = point;
+      point.label |= x;
+      if (isStr(x)) {
+        point.x = i++;
+      }
+    }
+  }
+};
+
 export const drawGraph = config => {
   const { data: allData } = config;
+
   const {
     width = 800,
     height = 500,
@@ -197,6 +209,8 @@ export const drawGraph = config => {
     axisLabels = {x: "X", y: "Y"},
     onClick,
   } = config;
+
+  normalizeData(allData);
 
   const svg = el("svg", {
     xmlns: SVG_NS,
@@ -244,13 +258,7 @@ export const drawGraph = config => {
 
     const xIsStringy = isStr(dataSeries[0][0].x);
 
-    let xValues;
-    if (xIsStringy) {
-      xValues = map(dataSeries[0], (_, i) => i);
-      xValues.sort((a, b) => a - b);
-    } else {
-       xValues = [...new Set(flatmap(dataSeries, d => map(d, a => a.x)))];
-    }
+    let xValues = [...new Set(flatmap(dataSeries, d => map(d, a => a.x)))];
 
     // Zoomed in/out too far, can't guarantee correctness.
     if (abs(xValues[0] - xValues.at(-1)) < 1e-10 ||
@@ -468,8 +476,8 @@ export const drawGraph = config => {
     // With tracker positions
     const updateKeyWithPositions = positions => {
       updateKey(map(zip(lineLabels, positions),
-        ([label, {x, y}]) =>
-          `${label.padEnd(maxLabelLen)}  ${formatTrackerLabel(xIsStringy ? x : xLabel(x), y)}`
+        ([label, pt]) =>
+          `${label.padEnd(maxLabelLen)}  ${formatTrackerLabel(pt)}`
       ));
       updateKeyRect(max(...map(keyTexts, elem => elem.getNumberOfChars())));
     };
