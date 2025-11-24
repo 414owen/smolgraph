@@ -280,11 +280,12 @@ export const drawGraph = config => {
 
     // Calculate scales
     const xScaleData = calculateNiceScale(xValues, maxTicks.x);
+
     if (!xScaleData) {return;}
     if (xIsStringy) {
       xScaleData.ticks = map(xScaleData.ticks, xLabel);
     }
-    const yScaleData = calculateNiceScale(bounds(yValues), maxTicks.y);
+    const yScaleData = calculateNiceScale(yValues, maxTicks.y);
 
     const marginLeft = CHAR_HEIGHT + CHAR_WIDTH * 3 +
       maximum(map(yScaleData.ticks, tickWidth));
